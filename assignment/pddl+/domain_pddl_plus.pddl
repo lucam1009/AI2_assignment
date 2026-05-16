@@ -1,5 +1,5 @@
 (define (domain concurrent_warehouse)
-(:requirements :strips :typing :negative-preconditions)
+(:requirements :strips :typing :negative-preconditions :adl :fluents :time)
 
 (:types robot package location)
 
@@ -10,27 +10,60 @@
     (connect ?l1 ?l2 - location)
     (occupied ?l - location)
     (robot_free  ?r - robot)
+    (speed ?r - robot)
+    (distance ?l - location)
+    (moving ?r - robot)
 )
 
 
 (:functions 
+    (speed ?r - robot)
+    (distance ?from ?to - location)
+    (distance-remaining ?r - robot)
+    (time-moving ?r - robot) 
 )
 
-(:action move
-    :parameters (?r - robot ?l1 ?l2 - location)
+(:action start_crossing
+    :parameters (?r - robot ?from ?to - location)
     :precondition (and 
-        (in ?r ?l1)
-        (not (in ?r ?l2))
-        (connect ?l1 ?l2)
-        (not (occupied ?l2))
+        (in ?r ?from)
+        (not (in ?r ?to))
+        (connect ?from ?to)
+        (not (occupied ?to))
     )
     :effect (and 
-        (in ?r ?l2)
-        (not (in ?r ?l1))
-        (occupied ?l2)
-        (not (occupied ?l1))
+        (moving ?r)
+        (assign (distance-remaining ?r) (distance ?from ?to))
+        (assign (time-moving ?r) 0)
     )
 )
+
+(:process crossing
+    :parameters (?r - robot)
+    :precondition (and
+        (moving ?r)
+        (> (distance-remaining ?r) 0)
+    )
+    :effect (and
+        (decrease (distance-remaining ?r) (* #t (speed ?r)))
+        (increase(time-moving ?r) (* #t 1))
+    )
+)
+
+(:event arrive
+    :parameters (?r - robot ?to - location)
+    :precondition (and
+        (moving ?r)
+        (<= (distance-remaining ?r) 0)
+    )
+    :effect (and
+        (not(moving ?r))
+        (in ?r ?to)
+        (assign (distance-remaining ?r) 0)
+    )
+)
+
+
 
 (:action pick_up
     :parameters (?r - robot ?p - package ?l - location)
